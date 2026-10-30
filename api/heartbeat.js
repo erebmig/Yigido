@@ -32,6 +32,8 @@ export default async function handler(req, res) {
   if (SECRET && secret !== SECRET) return res.status(401).json({ error: "Unauthorized" });
 
   const playerName = req.body?.player || "Player";
+  const jobId = req.body?.jobId || "";
+  const placeId = req.body?.placeId || "";
 
   try {
     await ensureTable();
@@ -39,6 +41,8 @@ export default async function handler(req, res) {
     await kvSet("last_seen", now);
     await kvSet("player", playerName);
     await kvSet("status", "online");
+    if (jobId) await kvSet("job_id", jobId);
+    if (placeId) await kvSet("place_id", placeId);
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error(err);

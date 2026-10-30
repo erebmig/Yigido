@@ -19,7 +19,9 @@ export default async function handler(req, res) {
     const status = await kvGet("status") || "offline";
     const lastSeen = await kvGet("last_seen");
     const player = await kvGet("player") || "Unknown";
-    return res.status(200).json({ status, lastSeen, player });
+    const jobId = await kvGet("job_id") || "";
+    const placeId = await kvGet("place_id") || "142823291";
+    return res.status(200).json({ status, lastSeen, player, jobId, placeId });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

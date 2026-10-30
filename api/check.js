@@ -1,5 +1,4 @@
 // api/check.js — GET /api/check
-// cron-job.org her 30sn çağırır → timeout geçtiyse offline yap
 import { neon } from "@neondatabase/serverless";
 
 const sql = neon(process.env.DATABASE_URL);
@@ -35,6 +34,7 @@ export default async function handler(req, res) {
 
     if (elapsed > TIMEOUT && status !== "offline") {
       await kvSet("status", "offline");
+      await kvSet("job_id", "");
       return res.status(200).json({ ok: true, action: "set_offline", elapsed });
     }
 
